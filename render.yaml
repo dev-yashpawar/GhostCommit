@@ -21,9 +21,5 @@ services:
         value: "true"
       - key: GHOSTCOMMIT_DATA
         value: /var/data/ghostcommit
-      - key: GHOSTCOMMIT_USERNAME
-        value: admin
-      - key: GHOSTCOMMIT_PASSWORD
-        sync: false
       - key: GEMINI_API_KEY
         sync: false

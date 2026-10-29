@@ -98,4 +98,4 @@ app.use((err:unknown,_req:express.Request,res:express.Response,_next:express.Nex
 // Interrupted jobs never remain falsely marked as running after a restart.
 for(const repo of list<Repo>('repo'))if(repo.status==='working'){repo.status=repo.files.length?'ready':'failed';repo.operationCompletedAt=new Date().toISOString();repo.stage='Interrupted by restart';repo.error='Previous operation was interrupted. Rescan or reimport.';save('repo',repo);}
 const cutoff=Date.now()-settings().retentionDays*86400000;for(const item of list<Activity>('activity'))if(Date.parse(item.createdAt)<cutoff)remove('activity',item.id);
-app.listen(port,deployment.host,()=>console.log(`GhostCommit API: http://${deployment.host}:${port}\nLocal storage: ${dataRoot}\nApproved local roots: ${localRoots.length}\nHosted password protection: ${deployment.hosted?'enabled':'local mode'}`));
+app.listen(port,deployment.host,()=>console.log(`GhostCommit API: http://${deployment.host}:${port}\nLocal storage: ${dataRoot}\nApproved local roots: ${localRoots.length}\nAccess: ${deployment.hosted?'public shared workspace':'local mode'}`));

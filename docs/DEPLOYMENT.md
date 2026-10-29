@@ -1,6 +1,6 @@
 # Deploy GhostCommit to Render
 
-Render hosts the Express API and the built React site together, at the same URL. The persistent disk holds SQLite, imported repositories and separate patch workspaces. This is a **single-owner workspace** protected by a shared browser login, not a multi-user SaaS. Anyone with that login can access all workspace data and use the configured AI provider.
+Render hosts the Express API and the built React site together, at the same URL. The persistent disk holds SQLite, imported repositories and separate patch workspaces. This is a **public shared workspace** with no password prompt. Anyone who opens the URL can access the saved workspace and use the configured AI provider. Devices share the same server workspace; there are no separate user accounts.
 
 ## 1. Push the code to GitHub
 
@@ -27,12 +27,12 @@ If an initial local commit or origin already exists, skip those creation command
 1. Sign in at https://dashboard.render.com and connect GitHub.
 2. Choose **New → Blueprint**, select your repository and the `main` branch. Render reads the root `render.yaml`.
 3. Review the paid **512 MB web service** and **1 GB persistent disk** before approving creation. Persistent disks are not available on free web services. Check Render's current prices in the dashboard.
-4. Enter the requested secret values:
+4. Enter the requested server-side secret:
    - `GEMINI_API_KEY`: your Google AI Studio key.
-   - `GHOSTCOMMIT_PASSWORD`: a unique password of at least 16 characters. Your browser login username is `admin`.
+   - No username or password is needed. Old `GHOSTCOMMIT_USERNAME` and `GHOSTCOMMIT_PASSWORD` variables are ignored and can be deleted.
 5. Deploy. The Blueprint installs dependencies, builds the SPA, and runs `npm start`. No separate frontend service is needed.
 
-Render supplies `PORT` and `RENDER_EXTERNAL_URL`. Hosted mode binds to `0.0.0.0`, admits only the configured public host/origin, requires a browser login for all workspace/API/stream requests, and retains mutation session-token checks. `/api/health` intentionally exposes only a small unauthenticated health response so Render can probe it. Missing hosted URL or password stops startup.
+Render supplies `PORT` and `RENDER_EXTERNAL_URL`. Hosted mode binds to `0.0.0.0`, admits only the configured public host/origin, allows public access to workspace/API/stream requests, and retains mutation session-token checks. `/api/health` intentionally exposes only a small unauthenticated health response so Render can probe it. A missing hosted URL stops startup.
 
 The build uses `npm ci --include=dev && npm run build`: the TypeScript/Vite build and `tsx` startup require development dependencies to remain installed. Node 22.14.0 is pinned in `.node-version` and the Blueprint. Render's native Node runtime must include Git (`git --version` in the service shell).
 
@@ -53,20 +53,20 @@ If you prefer **New → Web Service**, use these values:
 | `NODE_ENV` | `production` |
 | `GHOSTCOMMIT_HOSTED` | `true` |
 | `GHOSTCOMMIT_DATA` | `/var/data/ghostcommit` |
-| `GHOSTCOMMIT_USERNAME` | `admin` |
-| `GHOSTCOMMIT_PASSWORD` | Your unique password, at least 16 characters |
+
+
 | `GEMINI_API_KEY` | Your server-side Google key |
 
 ## 3. Configure and check the running app
 
-1. Open the Render HTTPS URL and sign in with `admin` and your chosen password. Use the browser's own login prompt. Do not embed credentials in URLs.
+1. Open the Render HTTPS URL on any device. No login is required.
 2. Go to **Settings → AI provider**, choose Google, refresh models, select an available model (for example `gemini-2.5-flash` if listed), enable cloud analysis consent, and save.
 3. Import a small public GitHub repository. Run AI autopsy and check the working animation and completed report.
 4. Redeploy once and confirm the repository/report remain. Only data under the mounted disk survives deployments.
 
 Existing laptop imports/settings are not uploaded. The new hosted workspace starts empty. Local repository picking refers to the server's filesystem, not the visitor's laptop. Ollama requires a separately available local inference service; use Google on this Render deployment.
 
-For a custom domain, add it in Render and set `GHOSTCOMMIT_PUBLIC_URL=https://your-domain.example` (origin only, no path), then redeploy. The original Render URL remains allowed. Never use a `VITE_` prefix for API keys or passwords.
+For a custom domain, add it in Render and set `GHOSTCOMMIT_PUBLIC_URL=https://your-domain.example` (origin only, no path), then redeploy. The original Render URL remains allowed. Never use a `VITE_` prefix for API keys.
 
 ## 4. Push updates
 
@@ -81,15 +81,15 @@ Render deploys updates from the linked branch when auto-deploy is enabled. Disk-
 
 ## Troubleshooting
 
-- **Password/configuration startup error:** check the secret exists and has at least 16 characters. Never paste it into logs or Git.
+- **Old password prompt:** deploy the latest commit. Legacy username/password variables are ignored; cancel any already-open browser prompt and reload.
 - **403 unrecognized host/origin:** check `GHOSTCOMMIT_PUBLIC_URL`, especially after adding a custom domain. Do not disable host or CSRF checks.
-- **401:** the browser login is missing or incorrect. Every API call needs the same authenticated browser session.
+- **Free hosting:** choose a Free Web Service, omit the disk and set `GHOSTCOMMIT_DATA=/tmp/ghostcommit`. Saved repositories and reports are temporary and disappear on restart or sleep.
 - **Build out of memory:** increase available build memory; avoid running multiple builds concurrently. For constrained build environments try `RAYON_NUM_THREADS=1` and `NODE_OPTIONS=--max-old-space-size=1024` if at least that much memory is available.
 - **Data disappears:** verify the paid disk is mounted at `/var/data` and `GHOSTCOMMIT_DATA=/var/data/ghostcommit`.
 - **AI unavailable:** use Settings to check the key, selected model and cloud consent. Inspect Render logs for provider errors; Google quota/billing is separate.
 
 ## Why not deploy the complete app on Vercel?
 
-This backend needs durable local SQLite/files, Git subprocesses, long-lived in-process jobs and same-origin server-sent events. Vercel Functions do not provide durable local filesystem storage. Vercel-only deployment would need a storage/database and job-worker redesign. A Vercel frontend could be added later, but the current same-origin security and browser login would also need adaptation. Render hosts this version as one service.
+This backend needs durable local SQLite/files, Git subprocesses, long-lived in-process jobs and same-origin server-sent events. Vercel Functions do not provide durable local filesystem storage. Vercel-only deployment would need a storage/database and job-worker redesign. A Vercel frontend could be added later, but the current same-origin security would also need adaptation. Render hosts this version as one service.
 
 References: [Render Blueprints](https://render.com/docs/blueprint-spec), [persistent disks](https://render.com/docs/disks), [Render environment variables](https://render.com/docs/environment-variables), [Vercel SQLite support](https://vercel.com/kb/guide/is-sqlite-supported-in-vercel).

@@ -8,7 +8,7 @@ Forgotten projects are often hard to understand before they are hard to fix. Gho
 
 ## Run locally
 
-For hosting, use the included **Render Blueprint**: see [deployment and Git push steps](docs/DEPLOYMENT.md). It deploys the frontend and API together with a paid persistent disk and password-protected access. The current SQLite/Git backend requires a persistent server; Vercel-only hosting needs an architectural change.
+For hosting, use the included **Render Blueprint**: see [deployment and Git push steps](docs/DEPLOYMENT.md). It deploys the frontend and API together with a paid persistent disk and public access without a login. The current SQLite/Git backend requires a persistent server; Vercel-only hosting needs an architectural change.
 
 Requires **Node.js 22.14+**, npm and Git. AI features use either a server-side Google API key or [Ollama](https://ollama.com/). SQLite is provided by Node (experimental on Node 22).
 
@@ -89,7 +89,7 @@ React + TypeScript + Vite
   React Router · TanStack Query · Zustand
   Tailwind CSS · shadcn-style Button · Framer Motion · Lucide · Monaco
         │ same-origin REST + server-sent events
-Express + Zod (local loopback or password-protected hosting, mutation session tokens)
+Express + Zod (local loopback or public hosting, mutation session tokens)
         ├── Git CLI → bounded isolated imported checkout
         ├── file filtering → Tree-sitter WASM → deterministic findings
         ├── bounded evidence context → selected AI provider → schema validation
