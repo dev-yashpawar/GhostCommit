@@ -1,0 +1,45 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {once} from 'node:events';
+import express from 'express';
+import http from 'node:http';
+import {hostingConfig,hostingGuard} from '../server/hosting.js';
+
+const cloud={GHOSTCOMMIT_HOSTED:'true',GHOSTCOMMIT_PUBLIC_URL:'https://ghost.example.com',GHOSTCOMMIT_PASSWORD:'test-password-only-1234'};
+test('hosted startup requires an exact HTTPS origin and a strong login password',()=>{
+ assert.equal(hostingConfig({}).host,'127.0.0.1');
+ assert.equal(hostingConfig(cloud).host,'0.0.0.0');
+ for(const env of [{...cloud,GHOSTCOMMIT_PUBLIC_URL:''},{...cloud,GHOSTCOMMIT_PUBLIC_URL:'http://ghost.example.com'},{...cloud,GHOSTCOMMIT_PUBLIC_URL:'https://ghost.example.com/path'},{...cloud,GHOSTCOMMIT_PASSWORD:'short'},{...cloud,PORT:'oops'}])assert.throws(()=>hostingConfig(env));
+ const render=hostingConfig({RENDER:'true',RENDER_EXTERNAL_URL:'https://ghost.onrender.com',GHOSTCOMMIT_PASSWORD:cloud.GHOSTCOMMIT_PASSWORD});
+ assert.ok(render.hosts.has('ghost.onrender.com'));
+});
+
+test('hosted HTTP protects sources, session tokens and streams while allowing health probes',async()=>{
+ const app=express();app.use(hostingGuard(hostingConfig(cloud)));
+ app.get('/api/health',(_req,res)=>res.json({ok:true}));
+ app.get('/api/events',(_req,res)=>res.type('text/event-stream').send('data: {"type":"connected"}\n\n'));
+ app.get('/api/session',(_req,res)=>res.json({token:'test-session'}));
+ app.get('/settings',(_req,res)=>res.send('SPA'));
+ app.post('/api/mutate',(req,res)=>req.headers['x-ghostcommit-token']==='test-session'?res.json({ok:true}):res.status(403).end());
+ const server=app.listen(0,'127.0.0.1');await once(server,'listening');
+ const address=server.address() as {port:number};const base=`http://127.0.0.1:${address.port}`;
+ // Node fetch may normalize Host. Exercise the real reverse-proxy Host using HTTP.
+ const fetch=(url:string,options:{headers?:Record<string,string>;method?:string}={})=>new Promise<{status:number;headers:{get:(name:string)=>string|null}}>((resolve,reject)=>{
+  const request=http.request(url,options,response=>{response.resume();response.on('end',()=>resolve({status:response.statusCode!,headers:{get:name=>{const value=response.headers[name.toLowerCase()];return Array.isArray(value)?value.join(','):value||null;}}}));});request.on('error',reject);request.end();
+ });
+ const credentials='Basic '+Buffer.from('admin:'+cloud.GHOSTCOMMIT_PASSWORD).toString('base64');
+ const headers={Host:'ghost.example.com',Authorization:credentials};
+ try{
+  assert.equal((await fetch(base+'/api/health')).status,200);
+  for(const route of ['/api/session','/api/events','/settings']){
+   const denied=await fetch(base+route,{headers:{Host:headers.Host}});assert.equal(denied.status,401);assert.match(denied.headers.get('www-authenticate')||'',/Basic/);
+   assert.equal((await fetch(base+route,{headers})).status,200);
+  }
+  assert.equal((await fetch(base+'/api/session',{headers:{...headers,Authorization:'Basic '+Buffer.from('admin:wrong').toString('base64')}})).status,401);
+  assert.equal((await fetch(base+'/api/session',{headers:{...headers,Host:'attacker.example'}})).status,403);
+  assert.equal((await fetch(base+'/api/session',{headers:{...headers,Origin:'https://attacker.example'}})).status,403);
+  assert.equal((await fetch(base+'/api/session',{headers:{...headers,'Sec-Fetch-Site':'cross-site'}})).status,403);
+  assert.equal((await fetch(base+'/api/mutate',{method:'POST',headers:{...headers,Origin:cloud.GHOSTCOMMIT_PUBLIC_URL}})).status,403);
+  assert.equal((await fetch(base+'/api/mutate',{method:'POST',headers:{...headers,Origin:cloud.GHOSTCOMMIT_PUBLIC_URL,'X-GhostCommit-Token':'test-session'}})).status,200);
+ }finally{server.closeAllConnections();await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));}
+});

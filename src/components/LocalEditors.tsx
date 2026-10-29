@@ -1,0 +1,17 @@
+import Editor,{DiffEditor,loader} from '@monaco-editor/react';
+import * as monaco from 'monaco-editor/editor/editor.api.js';
+import 'monaco-editor/languages/definitions/javascript/register.js';
+import 'monaco-editor/languages/definitions/typescript/register.js';
+import 'monaco-editor/languages/definitions/python/register.js';
+import 'monaco-editor/languages/definitions/java/register.js';
+import 'monaco-editor/languages/definitions/markdown/register.js';
+import 'monaco-editor/languages/definitions/css/register.js';
+import 'monaco-editor/languages/definitions/html/register.js';
+import 'monaco-editor/language/json/monaco.contribution.js';
+import 'monaco-editor/language/typescript/monaco.contribution.js';
+import EditorWorker from 'monaco-editor/editor/editor.worker.js?worker';
+import JsonWorker from 'monaco-editor/language/json/json.worker.js?worker';
+import TsWorker from 'monaco-editor/language/typescript/ts.worker.js?worker';
+self.MonacoEnvironment={getWorker(_id,label){if(label==='json')return new JsonWorker();if(label==='typescript'||label==='javascript')return new TsWorker();return new EditorWorker();}};
+loader.config({monaco});
+export {Editor,DiffEditor};

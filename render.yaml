@@ -1,0 +1,29 @@
+# One service and one persistent disk. This provisions paid Render resources.
+services:
+  - type: web
+    name: ghostcommit
+    runtime: node
+    plan: 0.5c-512mb
+    numInstances: 1
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    disk:
+      name: ghostcommit-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 22.14.0
+      - key: NODE_ENV
+        value: production
+      - key: GHOSTCOMMIT_HOSTED
+        value: "true"
+      - key: GHOSTCOMMIT_DATA
+        value: /var/data/ghostcommit
+      - key: GHOSTCOMMIT_USERNAME
+        value: admin
+      - key: GHOSTCOMMIT_PASSWORD
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

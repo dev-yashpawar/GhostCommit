@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.ghostcommit/
+.env*
+!.env.example
+*.log
+test-artifacts/
+.npm-cache/
+.DS_Store
+Thumbs.db
+*.tsbuildinfo
