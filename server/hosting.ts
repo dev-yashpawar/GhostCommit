@@ -28,7 +28,10 @@ export function hostingGuard(config:ReturnType<typeof hostingConfig>):RequestHan
   if(req.method==='GET'&&req.path==='/api/health')return next();
   if(!config.hosts.has(req.headers.host||''))return void res.status(403).json({error:'Unrecognized application host.'});
   const origin=req.headers.origin;
-  if((origin&&!config.origins.has(origin))||req.headers['sec-fetch-site']==='cross-site')return void res.status(403).json({error:'Cross-site access is blocked.'});
+  // Following a link from Render/GitHub is a cross-site document navigation.
+  // Admit that read-only page entry, but never cross-site API, iframe or fetch requests.
+  const pageNavigation=req.method==='GET'&&req.path!=='/api'&&!req.path.startsWith('/api/')&&req.headers['sec-fetch-mode']==='navigate'&&req.headers['sec-fetch-dest']==='document';
+  if((origin&&!config.origins.has(origin))||(req.headers['sec-fetch-site']==='cross-site'&&!pageNavigation))return void res.status(403).json({error:'Cross-site access is blocked.'});
   if(config.hosted){
    const match=/^Basic ([A-Za-z0-9+/]+={0,2})$/i.exec(req.headers.authorization||'');
    const actual=createHash('sha256').update(match?Buffer.from(match[1],'base64') : Buffer.alloc(0)).digest();

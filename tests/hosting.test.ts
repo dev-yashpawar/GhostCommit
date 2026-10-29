@@ -39,6 +39,14 @@ test('hosted HTTP protects sources, session tokens and streams while allowing he
   assert.equal((await fetch(base+'/api/session',{headers:{...headers,Host:'attacker.example'}})).status,403);
   assert.equal((await fetch(base+'/api/session',{headers:{...headers,Origin:'https://attacker.example'}})).status,403);
   assert.equal((await fetch(base+'/api/session',{headers:{...headers,'Sec-Fetch-Site':'cross-site'}})).status,403);
+  const navigation={'Sec-Fetch-Site':'cross-site','Sec-Fetch-Mode':'navigate','Sec-Fetch-Dest':'document'};
+  assert.equal((await fetch(base+'/settings',{headers:{Host:headers.Host,...navigation}})).status,401,'external page links must reach the login prompt');
+  assert.equal((await fetch(base+'/settings',{headers:{...headers,...navigation}})).status,200,'authenticated external page links must open the SPA');
+  assert.equal((await fetch(base+'/api/session',{headers:{...headers,...navigation}})).status,403,'document navigation must not expose API tokens');
+  assert.equal((await fetch(base+'/api/events',{headers:{...headers,...navigation}})).status,403,'document navigation must not expose event streams');
+  assert.equal((await fetch(base+'/settings',{headers:{...headers,...navigation,'Sec-Fetch-Dest':'iframe'}})).status,403);
+  assert.equal((await fetch(base+'/settings',{headers:{...headers,...navigation,'Sec-Fetch-Mode':'cors'}})).status,403);
+  assert.equal((await fetch(base+'/api/mutate',{method:'POST',headers:{...headers,...navigation,'X-GhostCommit-Token':'test-session'}})).status,403);
   assert.equal((await fetch(base+'/api/mutate',{method:'POST',headers:{...headers,Origin:cloud.GHOSTCOMMIT_PUBLIC_URL}})).status,403);
   assert.equal((await fetch(base+'/api/mutate',{method:'POST',headers:{...headers,Origin:cloud.GHOSTCOMMIT_PUBLIC_URL,'X-GhostCommit-Token':'test-session'}})).status,200);
  }finally{server.closeAllConnections();await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));}
